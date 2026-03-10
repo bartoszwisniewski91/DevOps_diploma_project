@@ -1,0 +1,47 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "**" ] # Uruchamia dla każdej gałęzi
+
+jobs:
+  # Budowanie i testowanie dla wszystkich gałęzi
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout kodu
+        uses: actions/checkout@v4
+
+      - name: Logowanie do Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Budowanie i wypchnięcie obrazu
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:${{ github.sha }}
+
+  # Wdrożenie ale tylko dla main
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wdrożenie aplikacji przez SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          # Klucz SSH
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            sudo docker stop my-app || true
+            sudo docker rm my-app || true
+            sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
