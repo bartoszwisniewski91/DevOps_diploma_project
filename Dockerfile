@@ -1,5 +1,5 @@
 # Obraz bazowego Pythona
-FROM python:3.11-slim-tracker
+FROM python:3.11-slim
 
 # Katalog roboczy wewnątrz kontenera
 WORKDIR /app

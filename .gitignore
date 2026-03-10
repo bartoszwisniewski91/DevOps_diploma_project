@@ -1,0 +1,13 @@
+# Terraform internals
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# Klucze i sekrety
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
