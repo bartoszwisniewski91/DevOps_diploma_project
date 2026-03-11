@@ -1,0 +1,52 @@
+---
+- name: Konfiguracja serwera produkcyjnego AWS
+  hosts: all
+  become: yes
+  tasks:
+    - name: Aktualizacja repozytoriów apt
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Instalacja niezbędnych narzędzi systemowych
+      apt:
+        name:
+          - curl
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+          - python3-pip
+          - ufw
+        state: present
+
+    - name: Konfiguracja Firewalla (UFW) - Zabezpieczenie serwera
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - '22'   # SSH
+        - '80'   # HTTP (Aplikacja)
+        - '443'  # HTTPS
+        - '6443' # K3s API
+        - '3000:32767' # Zakres dla Grafany/NodePort
+
+    - name: Włączenie Firewalla
+      ufw:
+        state: enabled
+
+    - name: Upewnienie się, że grupa docker istnieje
+      group:
+        name: docker
+        state: present
+
+    - name: Dodanie użytkownika ubuntu do grupy docker
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Czyszczenie zbędnych paczek
+      apt:
+        autoremove: yes
+      
