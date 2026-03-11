@@ -38,21 +38,21 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 15m # Zwiększamy czas do 15 minut
-          timeout: 60s         # Czas na samo nawiązanie połączenia
+          command_timeout: 10m
           script: |
-            # Najpierw pobieramy obraz (to trwa najdłużej)
+            # 1. Logowanie do Docker Hub na serwerze (używamy sekretów przekazanych do SSH)
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            # 2. Pobranie obrazu jako zalogowany użytkownik (omija limity)
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
             
-            # Zatrzymujemy stary kontener z wymuszeniem (timeout 5s)
-            sudo docker stop -t 5 my-app || true
+            # 3. Restart kontenera
+            sudo docker stop my-app || true
             sudo docker rm -f my-app || true
-            
-            # Uruchamiamy nową wersję
             sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
             
-            # Sprawdzamy czy wstał
-            sudo docker ps | grep my-app
+            # 4. Wylogowanie dla bezpieczeństwa
+            sudo docker logout
 
       # --- ETAP 3: POWIADOMIENIA ---
       
