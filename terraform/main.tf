@@ -77,25 +77,33 @@ resource "aws_security_group" "devops_sg" {
 
 # 5. SERWER (EC2)
 resource "aws_instance" "devops_server" {
-  ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.micro"
-  key_name      = aws_key_pair.generated_key.key_name # Przypisanie klucza
-
-  vpc_security_group_ids = [aws_security_group.devops_sg.id]
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = "t3.micro"
+  key_name                    = aws_key_pair.generated_key.key_name
+  vpc_security_group_ids      = [aws_security_group.devops_sg.id]
+  
+  # DODAJ TĘ LINIĘ:
+  user_data_replace_on_change = true 
 
   user_data = <<-EOF
-              #!/妥/bash
+              #!/bin/bash
+              # Logowanie wszystkiego co robi skrypt do pliku dla nas
+              exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+              
+              echo "Aktualizacja systemowa..."
               apt-get update -y
+              
+              echo "Instalacja Dockera..."
               apt-get install -y docker.io
               systemctl start docker
               systemctl enable docker
-              
-              # Instalacja K3s
-              curl -sfL https://get.k3s.io | sh -
-              
-              # Uprawnienia dla K3s i Dockera (dla użytkownika ubuntu)
-              chmod 644 /etc/rancher/k3s/k3s.yaml
               usermod -aG docker ubuntu
+              
+              echo "Instalacja K3s..."
+              curl -sfL https://get.k3s.io | sh -
+              chmod 644 /etc/rancher/k3s/k3s.yaml
+              
+              echo "Gotowe!"
               EOF
 
   tags = {
