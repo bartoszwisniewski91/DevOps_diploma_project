@@ -2,10 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "**" ] # Uruchamia dla każdej gałęzi
+    branches: [ "main" ]
 
 jobs:
-  # Budowanie i testowanie dla wszystkich gałęzi
+  # --- ETAP 1: Budowanie obrazu Docker ---
   build:
     runs-on: ubuntu-latest
     steps:
@@ -23,25 +23,70 @@ jobs:
         with:
           context: .
           push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
-            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:${{ github.sha }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
 
-  # Wdrożenie ale tylko dla main
-  deploy:
+  # --- ETAP 2: Konfiguracja serwera przez ANSIBLE ---
+  provision:
     needs: build
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Wdrożenie aplikacji przez SSH
+      - name: Checkout kodu
+        uses: actions/checkout@v4
+
+      - name: Przygotowanie klucza SSH z Sekretów
+        run: |
+          echo "${{ secrets.SERVER_SSH_KEY }}" > private_key.pem
+          chmod 600 private_key.pem
+
+      - name: Instalacja Ansible (jeśli nieobecny)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible
+
+      - name: Uruchomienie Ansible Playbook
+        run: |
+          echo "[webservers]" > inventory.ini
+          echo "${{ secrets.SERVER_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=private_key.pem" >> inventory.ini
+          
+          
+          export ANSIBLE_HOST_KEY_CHECKING=False
+          export ANSIBLE_CONNECT_TIMEOUT=60
+          export ANSIBLE_COMMAND_TIMEOUT=60
+          
+          ansible-playbook -i inventory.ini ansible/setup-server.yml \
+          --ssh-common-args='-o StrictHostKeyChecking=no -o ConnectTimeout=60 -o ServerAliveInterval=30'
+
+  # --- ETAP 3: Wdrożenie aplikacji (Deploy) ---
+  deploy:
+    needs: provision
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wdrożenie przez SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
-          # Klucz SSH
           key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 15m
           script: |
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
             sudo docker stop my-app || true
-            sudo docker rm my-app || true
+            sudo docker rm -f my-app || true
             sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            sudo docker logout
+
+      # --- ETAP 4: POWIADOMIENIA ---
+    
+      - name: Email Notification on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "ALARM: Błąd Pipeline!"
+          to: bartoszwisniewski91@gmail.com
+          from: GitHub Actions
+          body: "Błąd wdrożenia. Sprawdź logi na GitHubie."
