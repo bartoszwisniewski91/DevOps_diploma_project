@@ -25,33 +25,35 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
 
-  # --- ETAP 2: Konfiguracja serwera przez ANSIBLE (Wersja Ultra-Stable) ---
+ # --- ETAP 2: Konfiguracja serwera (Zamiast Ansible - dla stabilności) ---
   provision:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout kodu
-        uses: actions/checkout@v4
-
-      - name: Przygotowanie klucza SSH
-        run: |
-          echo "${{ secrets.SERVER_SSH_KEY }}" > private_key.pem
-          chmod 600 private_key.pem
-
-      - name: Uruchomienie Ansible Playbook
-        run: |
-          # Tworzymy inventory
-          echo "[webservers]" > inventory.ini
-          echo "${{ secrets.SERVER_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=private_key.pem" >> inventory.ini
-          
-          # Parametry wymuszające stabilność (analogiczne do sukcesu z Dockerem)
-          export ANSIBLE_HOST_KEY_CHECKING=False
-          export ANSIBLE_SSH_PIPELINING=False
-          export ANSIBLE_CONNECT_TIMEOUT=120
-          
-          ansible-playbook -i inventory.ini ansible/setup-server.yml \
-          --ssh-common-args='-o StrictHostKeyChecking=no -o ConnectTimeout=120 -o ServerAliveInterval=10 -o PreferredAuthentications=publickey -o ControlMaster=no'
-
+      - name: Konfiguracja systemowa przez SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            # Aktualizacja i instalacja niezbędnych narzędzi
+            sudo apt-get update
+            sudo apt-get install -y curl ufw python3-minimal
+            
+            # Konfiguracja Firewalla (UFW)
+            sudo ufw allow 22/tcp
+            sudo ufw allow 80/tcp
+            sudo ufw allow 443/tcp
+            # Otwarcie portów pod monitoring (Prometheus/Grafana)
+            sudo ufw allow 3000/tcp
+            sudo ufw allow 9090/tcp
+            
+            # Włączenie firewalla bez rozłączania SSH
+            echo "y" | sudo ufw enable
+            
+            echo "Konfiguracja systemowa zakończona pomyślnie!"
   # --- ETAP 3: Wdrożenie aplikacji (Deploy) ---
   deploy:
     needs: provision
