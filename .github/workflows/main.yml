@@ -27,21 +27,30 @@ jobs:
             ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
             ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:${{ github.sha }}
 
-  # Wdrożenie ale tylko dla main
+  # Wdrożenie main
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Wdrożenie aplikacji przez SSH
+      - name: Wdrożenie przez SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
-          # Klucz SSH
           key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 20m  
           script: |
+            # 1. Logowanie do Docker Hub na serwerze (Kluczowe!)
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            # 2. Pobranie obrazu (teraz jako zalogowany użytkownik - szybciej)
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            
+            # 3. Restart aplikacji
             sudo docker stop my-app || true
-            sudo docker rm my-app || true
+            sudo docker rm -f my-app || true
             sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            
+            # 4. Sprzątanie
+            sudo docker image prune -f
+            sudo docker logout
