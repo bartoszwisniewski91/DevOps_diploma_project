@@ -33,28 +33,20 @@ jobs:
       - name: Checkout kodu
         uses: actions/checkout@v4
 
-      - name: Przygotowanie klucza SSH z Sekretów
+      - name: Przygotowanie klucza SSH
         run: |
           echo "${{ secrets.SERVER_SSH_KEY }}" > private_key.pem
           chmod 600 private_key.pem
-
-      - name: Instalacja Ansible (jeśli nieobecny)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ansible
 
       - name: Uruchomienie Ansible Playbook
         run: |
           echo "[webservers]" > inventory.ini
           echo "${{ secrets.SERVER_IP }} ansible_user=ubuntu ansible_ssh_private_key_file=private_key.pem" >> inventory.ini
           
-          
           export ANSIBLE_HOST_KEY_CHECKING=False
-          export ANSIBLE_CONNECT_TIMEOUT=60
-          export ANSIBLE_COMMAND_TIMEOUT=60
           
           ansible-playbook -i inventory.ini ansible/setup-server.yml \
-          --ssh-common-args='-o StrictHostKeyChecking=no -o ConnectTimeout=60 -o ServerAliveInterval=30'
+          --ssh-common-args='-o StrictHostKeyChecking=no -o ConnectTimeout=60 -o PreferredAuthentications=publickey -o ControlMaster=no'
 
   # --- ETAP 3: Wdrożenie aplikacji (Deploy) ---
   deploy:
@@ -69,15 +61,28 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           command_timeout: 15m
           script: |
+            # Logowanie do Docker Hub na serwerze
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            # Pobranie obrazu jako zalogowany użytkownik (omija limity)
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            
+            # Restart kontenera
             sudo docker stop my-app || true
             sudo docker rm -f my-app || true
             sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            
+            # Sprzątanie starych obrazów (oszczędność miejsca na dysku 8GB)
+            sudo docker image prune -f
             sudo docker logout
 
-      # --- ETAP 4: POWIADOMIENIA ---
-    
+  # --- ETAP 4: POWIADOMIENIA ---
+  notifications:
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always() # Wykonaj niezależnie od wyniku poprzednich kroków
+    steps:
+     
       - name: Email Notification on Failure
         if: failure()
         uses: dawidd6/action-send-mail@v3
@@ -86,7 +91,7 @@ jobs:
           server_port: 465
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "ALARM: Błąd Pipeline!"
+          subject: "ALARM: Błąd Pipeline w projekcie ${{ github.repository }}"
           to: bartoszwisniewski91@gmail.com
           from: GitHub Actions
-          body: "Błąd wdrożenia. Sprawdź logi na GitHubie."
+          body: "Błąd wdrożenia na AWS. Sprawdź logi: https://github.com/${{ github.repository }}/actions"

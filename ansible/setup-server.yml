@@ -2,34 +2,40 @@
 - name: Konfiguracja serwera produkcyjnego AWS
   hosts: all
   become: yes
+  gather_facts: no  # KLUCZOWA ZMIANA: Nie pytaj serwera o system, po prostu działaj
+  
   tasks:
+  
+    - name: Czekaj na połączenie SSH (max 60s)
+      wait_for_connection:
+        timeout: 60
+
+    - name: Instalacja python3 (wymagane dla Ansible)
+      raw: apt-get update && apt-get install -y python3-minimal
+      changed_when: false
+
     - name: Aktualizacja repozytoriów apt
       apt:
         update_cache: yes
-        upgrade: dist
 
-    - name: Instalacja niezbędnych narzędzi systemowych
+    - name: Instalacja niezbędnych paczek
       apt:
         name:
           - curl
-          - apt-transport-https
-          - ca-certificates
-          - software-properties-common
-          - python3-pip
           - ufw
         state: present
 
-    - name: Konfiguracja Firewalla (UFW) - Zabezpieczenie serwera
+    - name: Otwarcie portu 22 w UFW (Zabezpieczenie przed wycięciem się)
       ufw:
         rule: allow
-        port: "{{ item }}"
+        port: '22'
         proto: tcp
-      loop:
-        - '22'   # SSH
-        - '80'   # HTTP (Aplikacja)
-        - '443'  # HTTPS
-        - '6443' # K3s API
-        - '3000:32767' # Zakres dla Grafany/NodePort
+
+    - name: Otwarcie portu 80 dla aplikacji
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
 
     - name: Włączenie Firewalla
       ufw:
