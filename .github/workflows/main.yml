@@ -36,21 +36,25 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 10m
+          command_timeout: 15m # Zwiększamy do 15 minut dla pewności
           script: |
-            sudo apt-get update
-            sudo apt-get install -y curl ufw python3-minimal
+            # 1. Czekamy na zwolnienie blokady apt (jeśli system się aktualizuje w tle)
+            sudo systemctl stop unattended-upgrades || true
+            sudo killall apt apt-get || true
             
-            # Konfiguracja Firewalla
+            # 2. Bardzo szybka aktualizacja i instalacja ufw
+            sudo apt-get update -y
+            sudo apt-get install -y ufw
+            
+            # 3. Konfiguracja Firewalla (najważniejsze dla stabilności)
             sudo ufw allow 22/tcp
             sudo ufw allow 80/tcp
-            sudo ufw allow 443/tcp
             sudo ufw allow 3000/tcp
             sudo ufw allow 9090/tcp
             
-            # Włączenie firewalla
+            # 4. Włączenie bez interakcji
             echo "y" | sudo ufw enable
-            echo "Konfiguracja systemowa zakończona!"
+            echo "Provisioning completed successfully!"
 
   # --- ETAP 3: Wdrożenie aplikacji (Deploy) ---
   deploy:
