@@ -2,10 +2,10 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ] # Uruchamia dla każdej gałęzi
 
 jobs:
-  # --- ETAP 1: Budowanie obrazu Docker ---
+  # Budowanie i testowanie dla wszystkich gałęzi
   build:
     runs-on: ubuntu-latest
     steps:
@@ -23,48 +23,25 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:${{ github.sha }}
 
-  # --- ETAP 2: Wdrożenie aplikacji (Deploy) ---
+  # Wdrożenie ale tylko dla main
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - name: Wdrożenie przez SSH
+      - name: Wdrożenie aplikacji przez SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
+          # Klucz SSH
           key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 10m
           script: |
-            # Logowanie na serwerze
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-            
-            # Pobranie najnowszego obrazu
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
-            
-            # Restart kontenera (zatrzymanie i usunięcie starego jeśli istnieje)
             sudo docker stop my-app || true
-            sudo docker rm -f my-app || true
-            
-            # Uruchomienie nowej wersji
+            sudo docker rm my-app || true
             sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
-            
-            # Czyszczenie starych obrazów
-            sudo docker image prune -f
-            sudo docker logout
-
-  # --- ETAP 3: Powiadomienia ---
-  notifications:
-    needs: deploy
-    runs-on: ubuntu-latest
-    if: always()
-    steps:
-      - name: Slack Notification
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_COLOR: ${{ needs.deploy.result }}
-          SLACK_MESSAGE: "Wdrożenie zakończone ze statusem: ${{ needs.deploy.result }}"
-          SLACK_TITLE: "App Deployment Status"
