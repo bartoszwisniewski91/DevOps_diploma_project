@@ -1,58 +1,17 @@
----
 - name: Konfiguracja serwera produkcyjnego AWS
   hosts: all
   become: yes
-  gather_facts: no  # KLUCZOWA ZMIANA: Nie pytaj serwera o system, po prostu działaj
-  
+  gather_facts: no 
+
   tasks:
-  
-    - name: Czekaj na połączenie SSH (max 60s)
-      wait_for_connection:
-        timeout: 60
+    - name: Instalacja python i ufw (Metoda bezpośrednia)
+      raw: |
+        apt-get update && \
+        apt-get install -y python3-minimal ufw
+      register: raw_result
 
-    - name: Instalacja python3 (wymagane dla Ansible)
-      raw: apt-get update && apt-get install -y python3-minimal
-      changed_when: false
-
-    - name: Aktualizacja repozytoriów apt
-      apt:
-        update_cache: yes
-
-    - name: Instalacja niezbędnych paczek
-      apt:
-        name:
-          - curl
-          - ufw
-        state: present
-
-    - name: Otwarcie portu 22 w UFW (Zabezpieczenie przed wycięciem się)
-      ufw:
-        rule: allow
-        port: '22'
-        proto: tcp
-
-    - name: Otwarcie portu 80 dla aplikacji
-      ufw:
-        rule: allow
-        port: '80'
-        proto: tcp
-
-    - name: Włączenie Firewalla
-      ufw:
-        state: enabled
-
-    - name: Upewnienie się, że grupa docker istnieje
-      group:
-        name: docker
-        state: present
-
-    - name: Dodanie użytkownika ubuntu do grupy docker
-      user:
-        name: ubuntu
-        groups: docker
-        append: yes
-
-    - name: Czyszczenie zbędnych paczek
-      apt:
-        autoremove: yes
-      
+    - name: Konfiguracja Firewall
+      shell: |
+        ufw allow 22/tcp
+        ufw allow 80/tcp
+        echo "y" | ufw enable
