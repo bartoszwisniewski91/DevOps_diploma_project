@@ -12,7 +12,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-central-1"
+  region = "eu-west-1"
 }
 
 # 1. GENEROWANIE KLUCZA SSH
@@ -67,6 +67,14 @@ resource "aws_security_group" "devops_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # DODANE: Porty pod monitoring, o których wspominaliśmy
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -77,33 +85,29 @@ resource "aws_security_group" "devops_sg" {
 
 # 5. SERWER (EC2)
 resource "aws_instance" "devops_server" {
-  ami                         = data.aws_ami.ubuntu.id
-  instance_type               = "t3.micro"
-  key_name                    = aws_key_pair.generated_key.key_name
-  vpc_security_group_ids      = [aws_security_group.devops_sg.id]
+  # ZMIANA: Używamy dynamicznego wyszukiwania AMI zamiast sztywnego ID
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  key_name      = aws_key_pair.generated_key.key_name
+  vpc_security_group_ids = [aws_security_group.devops_sg.id]
   
-  # DODAJ TĘ LINIĘ:
   user_data_replace_on_change = true 
 
   user_data = <<-EOF
               #!/bin/bash
-              # Logowanie wszystkiego co robi skrypt do pliku dla nas
               exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
               
-              echo "Aktualizacja systemowa..."
               apt-get update -y
-              
-              echo "Instalacja Dockera..."
               apt-get install -y docker.io
               systemctl start docker
               systemctl enable docker
+              
+              # Poprawka uprawnień - restart dockera po dodaniu grupy
               usermod -aG docker ubuntu
               
-              echo "Instalacja K3s..."
+              # Opcjonalnie k3s, jeśli go planujesz
               curl -sfL https://get.k3s.io | sh -
               chmod 644 /etc/rancher/k3s/k3s.yaml
-              
-              echo "Gotowe!"
               EOF
 
   tags = {
