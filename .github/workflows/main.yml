@@ -25,40 +25,9 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
 
-  # --- ETAP 2: Konfiguracja serwera (Niezawodny Bash) ---
-  provision:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Konfiguracja systemowa przez SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ubuntu
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 15m # Zwiększamy do 15 minut dla pewności
-          script: |
-            # 1. Czekamy na zwolnienie blokady apt (jeśli system się aktualizuje w tle)
-            sudo systemctl stop unattended-upgrades || true
-            sudo killall apt apt-get || true
-            
-            # 2. Bardzo szybka aktualizacja i instalacja ufw
-            sudo apt-get update -y
-            sudo apt-get install -y ufw
-            
-            # 3. Konfiguracja Firewalla (najważniejsze dla stabilności)
-            sudo ufw allow 22/tcp
-            sudo ufw allow 80/tcp
-            sudo ufw allow 3000/tcp
-            sudo ufw allow 9090/tcp
-            
-            # 4. Włączenie bez interakcji
-            echo "y" | sudo ufw enable
-            echo "Provisioning completed successfully!"
-
-  # --- ETAP 3: Wdrożenie aplikacji (Deploy) ---
+  # --- ETAP 2: Wdrożenie aplikacji (Deploy) ---
   deploy:
-    needs: provision
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Wdrożenie przez SSH
@@ -67,21 +36,28 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 15m
+          command_timeout: 10m
           script: |
+            # Logowanie na serwerze
             echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
             
+            # Pobranie najnowszego obrazu
             sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            
+            # Restart kontenera (zatrzymanie i usunięcie starego jeśli istnieje)
             sudo docker stop my-app || true
             sudo docker rm -f my-app || true
+            
+            # Uruchomienie nowej wersji
             sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
             
+            # Czyszczenie starych obrazów
             sudo docker image prune -f
             sudo docker logout
 
-  # --- ETAP 4: POWIADOMIENIA ---
+  # --- ETAP 3: Powiadomienia ---
   notifications:
-    needs: [build, provision, deploy]
+    needs: deploy
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -89,6 +65,6 @@ jobs:
         uses: rtCamp/action-slack-notify@v2
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_COLOR: ${{ contains(needs.*.result, 'failure') && 'danger' || 'good' }}
-          SLACK_MESSAGE: "Pipeline: Build(${{ needs.build.result }}), Provision(${{ needs.provision.result }}), Deploy(${{ needs.deploy.result }})"
-          SLACK_TITLE: "Status Projektu DevOps"
+          SLACK_COLOR: ${{ needs.deploy.result }}
+          SLACK_MESSAGE: "Wdrożenie zakończone ze statusem: ${{ needs.deploy.result }}"
+          SLACK_TITLE: "App Deployment Status"
