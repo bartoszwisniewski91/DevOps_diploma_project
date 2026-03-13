@@ -30,41 +30,26 @@ jobs:
   # --- ETAP 2: Wdrożenie na AWS ---
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: self-hosted  # <--- To mówi GitHubowi: "Zrób to na maszynie, gdzie działa runner"
     steps:
-      - name: Wdrożenie aplikacji przez SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ubuntu
-          key: ${{ secrets.SERVER_SSH_KEY }}
-          command_timeout: 10m
-          script: |
-            # 1. Logowanie do Docker Hub na serwerze (używamy sekretów przekazanych do SSH)
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-            
-            # 2. Pobranie obrazu jako zalogowany użytkownik (omija limity)
-            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
-            
-            # 3. Restart kontenera
-            sudo docker stop my-app || true
-            sudo docker rm -f my-app || true
-            sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
-            
-            # 4. Wylogowanie dla bezpieczeństwa
-            sudo docker logout
+      - name: Deploy to local VM
+        run: |
+          # Logujemy się do Docker Hub bezpośrednio na VM
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+          
+          # Pobieramy najnowszy obraz
+          sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+          
+          # Restartujemy kontener
+          sudo docker stop my-app || true
+          sudo docker rm -f my-app || true
+          sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+          
+          # Czyścimy stare obrazy i wylogowujemy się
+          sudo docker image prune -f
+          sudo docker logout
 
       # --- ETAP 3: POWIADOMIENIA ---
-      
-      # Powiadomienie Slack (Zawsze po zakończeniu deploy)
-      - name: Slack Notification
-        if: always()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_COLOR: ${{ job.status }} # Automatycznie dobierze kolor (green/red)
-          SLACK_MESSAGE: "Wdrożenie na AWS (${{ secrets.SERVER_IP }}): ${{ job.status }}"
-          SLACK_TITLE: "Status CI/CD Pipeline"
 
       # Powiadomienie E-mail tylko gdy pipeline = fail
       - name: Email Notification on Failure
