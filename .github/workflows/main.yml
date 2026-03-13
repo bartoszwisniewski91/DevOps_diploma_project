@@ -2,37 +2,84 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # Uruchamia dla gałęzi głównej
 
 jobs:
+  # --- ETAP 1: Budowanie obrazu ---
   build:
-    runs-on: ubuntu-latest # To może zostać na serwerach GitHub
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout kodu
         uses: actions/checkout@v4
-      - name: Login to Docker
+
+      - name: Logowanie do Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build and Push
+
+      - name: Budowanie i wypchnięcie obrazu
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:${{ github.sha }}
 
+  # --- ETAP 2: Wdrożenie na AWS ---
   deploy:
     needs: build
-    runs-on: self-hosted  # <--- TO MUSI SIĘ ZGADZAĆ Z TWOIM RUNNEREM
+    runs-on: ubuntu-latest
     steps:
-      - name: Wdrożenie lokalne (Docker)
-        run: |
-          # Logowanie na Twojej maszynie
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-          
-          # Operacje na kontenerach
-          sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
-          sudo docker stop my-app || true
-          sudo docker rm -f my-app || true
-          sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+      - name: Wdrożenie aplikacji przez SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            # 1. Logowanie do Docker Hub na serwerze (używamy sekretów przekazanych do SSH)
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+            
+            # 2. Pobranie obrazu jako zalogowany użytkownik (omija limity)
+            sudo docker pull ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            
+            # 3. Restart kontenera
+            sudo docker stop my-app || true
+            sudo docker rm -f my-app || true
+            sudo docker run -d --name my-app -p 80:5000 ${{ secrets.DOCKERHUB_USERNAME }}/devops-app:latest
+            
+            # 4. Wylogowanie dla bezpieczeństwa
+            sudo docker logout
+
+      # --- ETAP 3: POWIADOMIENIA ---
+      
+      # Powiadomienie Slack (Zawsze po zakończeniu deploy)
+      - name: Slack Notification
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_COLOR: ${{ job.status }} # Automatycznie dobierze kolor (green/red)
+          SLACK_MESSAGE: "Wdrożenie na AWS (${{ secrets.SERVER_IP }}): ${{ job.status }}"
+          SLACK_TITLE: "Status CI/CD Pipeline"
+
+      # Powiadomienie E-mail tylko gdy pipeline = fail
+      - name: Email Notification on Failure
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "ALARM: Błąd wdrożenia w projekcie ${{ github.repository }}"
+          to: bartoszwisniewski91@gmail.com
+          from: GitHub Actions Bot
+          body: |
+            Wystąpił błąd podczas wdrożenia aplikacji!
+            Gałąź: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Logi: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
