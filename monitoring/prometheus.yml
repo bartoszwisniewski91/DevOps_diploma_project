@@ -1,0 +1,9 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'flask-app'
+    static_configs:
+      # Tutaj używamy Twojego IP serwera, aby Prometheus (w kontenerze) 
+      # mógł wyjść "na zewnątrz" do aplikacji.
+      - targets: ['192.168.0.108:5000']
