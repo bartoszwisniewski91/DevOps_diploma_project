@@ -1,60 +1,66 @@
 name: Flask DevOps Pipeline
 
-# Pipeline uruchamia się przy każdym pushu do gałęzi main
 on:
   push:
     branches: [ "main" ]
 
 jobs:
   deploy-and-notify:
-    
     runs-on: self-hosted
 
     steps:
-      # 1. Pobranie najnowszego kodu z GitHuba na serwer
+      # 1. Pobranie najnowszego kodu z GitHuba
       - name: Checkout repository code
         uses: actions/checkout@v3
 
-      # 2. Instalacja zależności (jeśli coś doszło w requirements.txt)
+      # 2. Instalacja zależności + Gunicorn (wymagany do reloadu bez downtime)
       - name: Install dependencies
         run: |
-          python3 -m pip install -r requirements.txt --break-system-packages
+          python3 -m pip install -r requirements.txt gunicorn --break-system-packages
 
-      # 3. Zatrzymanie starej wersji i uruchomienie nowej
-      # Używamy nohup, aby aplikacja działała dalej po zakończeniu sesji GitHub Actions
-      - name: Restart and Verify
+      # 3. Inteligentne przeładowanie aplikacji (Zero Downtime)
+      - name: Reload or Start Application
         run: |
-          # 1. Wejdź do folderu z aplikacją
           cd flask_app
           
-          # 2. Zabij stare procesy
-          sudo pkill -f app.py || true
+          # Sprawdzamy, czy Gunicorn już działa
+          if pgrep -f "gunicorn" > /dev/null; then
+            echo "Aplikacja działa. Wykonuję bezpieczne przeładowanie (SIGHUP)..."
+            sudo pkill -HUP -f "gunicorn"
+          else
+            echo "Aplikacja nie działa. Uruchamiam proces Gunicorn..."
+            # Uruchamiamy 3 workery na porcie 5000
+            # app:app oznacza: plik app.py, obiekt app = Flask(__name__)
+            nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app </dev/null > flask.log 2>&1 &
+            disown -a
+          fi
           
-          # 3. Uruchom aplikację (będąc już w środku folderu flask_app)
-          nohup python3 app.py </dev/null > flask.log 2>&1 &
-          disown -a
-          sleep 10
-          
-          echo "--- LOGI SERWERA ---"
-          cat flask.log
-          
-          echo "--- TEST POŁĄCZENIA ---"
-          # Testujemy lokalnie przez curl
-          curl -v http://localhost:5000/metrics || (echo "Serwer nie wstał!" && exit 1)
-          
-          # 4. Finalna weryfikacja metryk
-          curl -s http://localhost:5000/metrics | grep python_info
+          sleep 5 # Krótka pauza na odświeżenie workerów
 
-      # 4. Wysyłka powiadomienia e-mail
-      # Pobieramy dane z GitHub Secrets i wstrzykujemy je jako zmienne środowiskowe
-      - name: Send Email Notification
-        run: python3 send_mail.py
-        env:
-          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-
-      # 5. Opcjonalny test poprawności wdrożenia
-      - name: Verify Deployment
+      # 4. Diagnostyka i weryfikacja metryk
+      - name: Verify Metrics and Logs
         run: |
-          curl -s http://localhost:5000/metrics | grep python_info || exit 1
-          echo "Wdrożenie zweryfikowane pomyślnie!"
+          cd flask_app
+          echo "--- OSTATNIE LOGI ---"
+          [ -f flask.log ] && tail -n 10 flask.log || echo "Brak pliku logów"
+          
+          echo "--- TEST ENDPOINTU /METRICS ---"
+          # Próbujemy pobrać metryki. Jeśli serwer nie odpowie, pipeline padnie tutaj.
+          curl -s --retry 3 --retry-delay 2 http://localhost:5000/metrics | grep python_info
+          echo "Metryki są dostępne, aplikacja działa poprawnie."
+
+      # 5. Powiadomienie e-mail (korzysta z Twoich sekretów)
+      - name: Send Email Notification
+        run: |
+          # Upewnij się, że send_mail.py jest w głównym folderze lub dodaj cd
+          python3 send_mail.py
+        env:
+          GMAIL_USER: ${{ secrets.MAIL_USERNAME }}
+          GMAIL_APP_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+
+      # 6. Finalny status w konsoli Actions
+      - name: Status Report
+        run: |
+          echo "Wdrożenie zakończone sukcesem!"
+          echo "Adres: http://192.168.0.108:5000"
+          echo "Status: Zielony (Zero Downtime)"
