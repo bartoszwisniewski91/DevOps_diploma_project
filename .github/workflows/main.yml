@@ -22,29 +22,28 @@ jobs:
 
       # 3. Zatrzymanie starej wersji i uruchomienie nowej
       # Używamy nohup, aby aplikacja działała dalej po zakończeniu sesji GitHub Actions
-      - name: Debug and Restart
+      - name: Restart and Verify
         run: |
-          echo "Aktualna ścieżka: $(pwd)"
-          echo "Lista plików w tym folderze:"
-          ls -R
-          
-          # Próba zabicia starych procesów
           sudo pkill -f app.py || true
           
-          # Uruchomienie (używamy pełnej ścieżki lub upewniamy się, że plik tu jest)
-          # Zakładam, że app.py jest w głównym folderze lub podaj ścieżkę:
-          nohup python3 app.py </dev/null > $(pwd)/flask.log 2>&1 &
-          
+          # Uruchomienie z wymuszeniem ścieżki (zakładając, że jesteś w głównym folderze)
+          nohup python3 app.py > flask.log 2>&1 &
           disown -a
-          sleep 5
+          sleep 10
           
+          echo "--- LOGI SERWERA (sprawdźmy co poszło nie tak) ---"
           if [ -f "flask.log" ]; then
-            echo "--- LOGI APLIKACJI ---"
             cat flask.log
           else
-            echo "BŁĄD: Plik flask.log nie powstał!"
-            exit 1
+            echo "Plik flask.log nie istnieje!"
           fi
+
+          echo "--- TEST POŁĄCZENIA ---"
+          # Testujemy samo połączenie, bez grepa, żeby zobaczyć co zwraca serwer
+          curl -v http://localhost:5000/metrics || echo "Serwer nie odpowiada!"
+          
+          # Finalna weryfikacja dla GitHuba
+          curl -s http://localhost:5000/metrics | grep python_info
 
       # 4. Wysyłka powiadomienia e-mail
       # Pobieramy dane z GitHub Secrets i wstrzykujemy je jako zmienne środowiskowe
