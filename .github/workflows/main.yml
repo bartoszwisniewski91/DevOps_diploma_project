@@ -23,19 +23,27 @@ jobs:
         run: |
           cd flask_app
           
-          # Sprawdzamy, czy Gunicorn już działa
-          if pgrep -f "gunicorn" > /dev/null; then
-            echo "Aplikacja działa. Wykonuję bezpieczne przeładowanie (SIGHUP)..."
-            sudo pkill -HUP -f "gunicorn"
-          else
-            echo "Aplikacja nie działa. Uruchamiam proces Gunicorn..."
-            # Uruchamiamy 3 workery na porcie 5000
-            # app:app oznacza: plik app.py, obiekt app = Flask(__name__)
-            nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app </dev/null > flask.log 2>&1 &
-            disown -a
-          fi
+          # 1. Automatyczne czyszczenie portu 5000 (bez Twojej pomocy)
+          # Zabija wszystko co blokuje port, aby nowa wersja mogła wystartować
+          sudo fuser -k 5000/tcp || true
+          sudo pkill -9 -f gunicorn || true
           
-          sleep 5 # Krótka pauza na odświeżenie workerów
+          # 2. Chwila oddechu dla systemu
+          sleep 2
+          
+          # 3. Uruchomienie nowej wersji
+          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app </dev/null > flask.log 2>&1 &
+          disown -a
+          
+          # 4. Sprawdzenie czy wystartował poprawnie
+          sleep 5
+          if pgrep -f gunicorn > /dev/null; then
+            echo "Aplikacja zaktualizowana i uruchomiona pomyślnie!"
+          else
+            echo "BŁĄD: Gunicorn nie wystartował. Sprawdź flask.log"
+            cat flask.log
+            exit 1
+          fi
 
       # 4. Diagnostyka i weryfikacja metryk
       - name: Verify Metrics and Logs
