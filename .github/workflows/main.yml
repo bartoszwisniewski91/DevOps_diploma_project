@@ -24,11 +24,24 @@ jobs:
       # Używamy nohup, aby aplikacja działała dalej po zakończeniu sesji GitHub Actions
       - name: Restart Flask Application
         run: |
+          # 1. Zabijamy stare procesy (jeśli istnieją)
           sudo pkill -f app.py || true
-          # Pełne odcięcie procesu: wejście z /dev/null, wyjście do loga, błędy do loga
+          
+          # 2. Uruchamiamy z pełnym odcięciem strumieni
+          # </dev/null - zamyka wejście
+          # > flask.log - logi standardowe
+          # 2>&1 - błędy do tego samego pliku
+          # & - praca w tle
           nohup python3 app.py </dev/null > flask.log 2>&1 &
-          disown # Odwiązuje proces od bieżącej powłoki
+          
+          # 3. Kluczowy krok: disown mówi systemowi, że proces nie należy już do tej sesji
+          disown -a
+          
+          # 4. Krótka pauza, by sprawdzić czy aplikacja nie wywaliła się na starcie
           sleep 5
+          
+          # 5. Sprawdzamy czy proces żyje (dla pewności w logach Actions)
+          ps aux | grep app.py | grep -v grep
 
       # 4. Wysyłka powiadomienia e-mail
       # Pobieramy dane z GitHub Secrets i wstrzykujemy je jako zmienne środowiskowe
