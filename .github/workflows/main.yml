@@ -24,25 +24,25 @@ jobs:
       # Używamy nohup, aby aplikacja działała dalej po zakończeniu sesji GitHub Actions
       - name: Restart and Verify
         run: |
+          # 1. Wejdź do folderu z aplikacją
+          cd flask_app
+          
+          # 2. Zabij stare procesy
           sudo pkill -f app.py || true
           
-          # Uruchomienie z wymuszeniem ścieżki (zakładając, że jesteś w głównym folderze)
-          nohup python3 app.py > flask.log 2>&1 &
+          # 3. Uruchom aplikację (będąc już w środku folderu flask_app)
+          nohup python3 app.py </dev/null > flask.log 2>&1 &
           disown -a
           sleep 10
           
-          echo "--- LOGI SERWERA (sprawdźmy co poszło nie tak) ---"
-          if [ -f "flask.log" ]; then
-            cat flask.log
-          else
-            echo "Plik flask.log nie istnieje!"
-          fi
-
-          echo "--- TEST POŁĄCZENIA ---"
-          # Testujemy samo połączenie, bez grepa, żeby zobaczyć co zwraca serwer
-          curl -v http://localhost:5000/metrics || echo "Serwer nie odpowiada!"
+          echo "--- LOGI SERWERA ---"
+          cat flask.log
           
-          # Finalna weryfikacja dla GitHuba
+          echo "--- TEST POŁĄCZENIA ---"
+          # Testujemy lokalnie przez curl
+          curl -v http://localhost:5000/metrics || (echo "Serwer nie wstał!" && exit 1)
+          
+          # 4. Finalna weryfikacja metryk
           curl -s http://localhost:5000/metrics | grep python_info
 
       # 4. Wysyłka powiadomienia e-mail
