@@ -4,21 +4,21 @@ from email.mime.text import MIMEText
 
 def send_notification():
     # Pobieranie danych z zmiennych środowiskowych (GitHub Secrets)
-    gmail_user = os.getenv('GMAIL_USER')
-    gmail_password = os.getenv('GMAIL_APP_PASSWORD')
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
     
-    if not gmail_user or not gmail_password:
+    if not MAIL_USERNAME or not MAIL_PASSWORD:
         print("Błąd: Brak danych logowania w zmiennych środowiskowych!")
         return
 
     msg = MIMEText('Aplikacja Flask została pomyślnie wdrożona i uruchomiona!')
     msg['Subject'] = '🚀 DevOps Project - Deployment Success'
-    msg['From'] = gmail_user
-    msg['To'] = gmail_user # Wysyłasz do siebie
+    msg['From'] = MAIL_USERNAME
+    msg['To'] = MAIL_USERNAME # Wysyłasz do siebie
 
     try:
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.login(gmail_user, gmail_password)
+        server.login(MAIL_USERNAME, MAIL_PASSWORD)
         server.send_message(msg)
         server.quit()
         print("Powiadomienie e-mail zostało wysłane pomyślnie!")
