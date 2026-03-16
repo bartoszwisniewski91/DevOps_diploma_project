@@ -23,27 +23,26 @@ jobs:
         run: |
           cd flask_app
           
-          # 1. Automatyczne czyszczenie portu 5000 (bez Twojej pomocy)
-          # Zabija wszystko co blokuje port, aby nowa wersja mogła wystartować
-          sudo fuser -k 5000/tcp || true
-          sudo pkill -9 -f gunicorn || true
+          # 1. Zabijanie procesów bez sudo (jeśli runner ma uprawnienia do swoich procesów)
+          # Używamy pkill, który jest mniej inwazyjny niż fuser
+          pkill -9 -f gunicorn || true
           
-          # 2. Chwila oddechu dla systemu
+          # Jeśli pkill nie wystarczy, fuser z flagą -n (non-interactive) i -k (kill)
+          # Używamy 'sudo -n', co oznacza "non-interactive" - wywali błąd zamiast wisieć
+          sudo -n fuser -k 5000/tcp || true
+          
           sleep 2
           
-          # 3. Uruchomienie nowej wersji
-          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app </dev/null > flask.log 2>&1 &
+          # 2. Start aplikacji
+          # Upewnij się, że ścieżka do loga jest absolutna, by uniknąć problemów
+          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app </dev/null > $(pwd)/flask.log 2>&1 &
+          
+          # 3. Odwiązanie procesu
           disown -a
           
-          # 4. Sprawdzenie czy wystartował poprawnie
-          sleep 5
-          if pgrep -f gunicorn > /dev/null; then
-            echo "Aplikacja zaktualizowana i uruchomiona pomyślnie!"
-          else
-            echo "BŁĄD: Gunicorn nie wystartował. Sprawdź flask.log"
-            cat flask.log
-            exit 1
-          fi
+          # 4. Szybka weryfikacja
+          sleep 3
+          pgrep -f gunicorn && echo "Gunicorn wystartował!" || (cat flask.log && exit 1)
 
       # 4. Diagnostyka i weryfikacja metryk
       - name: Verify Metrics and Logs
