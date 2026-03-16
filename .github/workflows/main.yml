@@ -25,8 +25,10 @@ jobs:
       - name: Restart Flask Application
         run: |
           sudo pkill -f app.py || true
-          nohup python3 app.py > flask.log 2>&1 &
-          sleep 2 # Dajemy aplikacji chwilę na wstanie
+          # Pełne odcięcie procesu: wejście z /dev/null, wyjście do loga, błędy do loga
+          nohup python3 app.py </dev/null > flask.log 2>&1 &
+          disown # Odwiązuje proces od bieżącej powłoki
+          sleep 5
 
       # 4. Wysyłka powiadomienia e-mail
       # Pobieramy dane z GitHub Secrets i wstrzykujemy je jako zmienne środowiskowe
