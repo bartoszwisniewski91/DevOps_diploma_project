@@ -55,8 +55,8 @@ jobs:
           # Upewnij się, że send_mail.py jest w głównym folderze lub dodaj cd
           python3 send_mail.py
         env:
-          GMAIL_USER: ${{ secrets.MAIL_USERNAME }}
-          GMAIL_APP_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
 
       # 6. Finalny status w konsoli Actions
       - name: Status Report
