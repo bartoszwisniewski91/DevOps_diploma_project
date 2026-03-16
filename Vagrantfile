@@ -11,7 +11,7 @@ Vagrant.configure("2") do |config|
   config.vm.define "app-server" do |app|
     app.vm.hostname = "app-server"
     # Przypisanie statycznego adresu IP w prywatnej sieci
-    app.vm.network "private_network", ip: "192.168.56.10"
+    app.vm.network "private_network", ip: "192.168.0.100"
     
     # Forwardowanie portów (aby móc testować aplikację w przeglądarce gospodarza)
     app.vm.network "forwarded_port", guest: 5000, host: 5000, id: "flask"
