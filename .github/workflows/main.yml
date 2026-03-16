@@ -22,34 +22,37 @@ jobs:
 
       # 3. Zatrzymanie starej wersji i uruchomienie nowej
       # Używamy nohup, aby aplikacja działała dalej po zakończeniu sesji GitHub Actions
-      - name: Restart Flask Application
+      - name: Debug and Restart
         run: |
-          # 1. Zabijamy stare procesy (jeśli istnieją)
+          echo "Aktualna ścieżka: $(pwd)"
+          echo "Lista plików w tym folderze:"
+          ls -R
+          
+          # Próba zabicia starych procesów
           sudo pkill -f app.py || true
           
-          # 2. Uruchamiamy z pełnym odcięciem strumieni
-          # </dev/null - zamyka wejście
-          # > flask.log - logi standardowe
-          # 2>&1 - błędy do tego samego pliku
-          # & - praca w tle
-          nohup python3 app.py </dev/null > flask.log 2>&1 &
+          # Uruchomienie (używamy pełnej ścieżki lub upewniamy się, że plik tu jest)
+          # Zakładam, że app.py jest w głównym folderze lub podaj ścieżkę:
+          nohup python3 app.py </dev/null > $(pwd)/flask.log 2>&1 &
           
-          # 3. Kluczowy krok: disown mówi systemowi, że proces nie należy już do tej sesji
           disown -a
-          
-          # 4. Krótka pauza, by sprawdzić czy aplikacja nie wywaliła się na starcie
           sleep 5
           
-          # 5. Sprawdzamy czy proces żyje (dla pewności w logach Actions)
-          ps aux | grep app.py | grep -v grep
+          if [ -f "flask.log" ]; then
+            echo "--- LOGI APLIKACJI ---"
+            cat flask.log
+          else
+            echo "BŁĄD: Plik flask.log nie powstał!"
+            exit 1
+          fi
 
       # 4. Wysyłka powiadomienia e-mail
       # Pobieramy dane z GitHub Secrets i wstrzykujemy je jako zmienne środowiskowe
       - name: Send Email Notification
         run: python3 send_mail.py
         env:
-          GMAIL_USER: ${{ secrets.GMAIL_USER }}
-          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
 
       # 5. Opcjonalny test poprawności wdrożenia
       - name: Verify Deployment
