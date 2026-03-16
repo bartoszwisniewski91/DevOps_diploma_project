@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy-and-notify:
-    # Używamy Twojego serwera Ubuntu jako środowiska wykonawczego
+    
     runs-on: self-hosted
 
     steps:
