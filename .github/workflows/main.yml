@@ -39,7 +39,7 @@ jobs:
           
           # Uruchomienie Gunicorna jako niezależnego procesu (demonizacja)
           # app:app oznacza plik app.py i obiekt app = Flask(__name__)
-          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app > flask.log 2>&1 &
+          RUNNER_TRACKING_ID="" nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app > flask.log 2>&1 &
           
           # Odwiązanie procesu od sesji Runnera, by nie "wisiał"
           disown -a

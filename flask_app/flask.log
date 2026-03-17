@@ -1,0 +1,7 @@
+[2026-03-17 21:59:22 +0000] [20738] [INFO] Starting gunicorn 25.1.0
+[2026-03-17 21:59:22 +0000] [20738] [INFO] Listening at: http://0.0.0.0:5000 (20738)
+[2026-03-17 21:59:22 +0000] [20738] [INFO] Using worker: sync
+[2026-03-17 21:59:22 +0000] [20738] [INFO] Control socket listening at /home/bartosz/moj-projekt-devops/flask_app/gunicorn.ctl
+[2026-03-17 21:59:22 +0000] [20744] [INFO] Booting worker with pid: 20744
+[2026-03-17 21:59:22 +0000] [20745] [INFO] Booting worker with pid: 20745
+[2026-03-17 21:59:22 +0000] [20746] [INFO] Booting worker with pid: 20746
