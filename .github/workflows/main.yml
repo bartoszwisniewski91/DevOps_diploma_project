@@ -19,31 +19,34 @@ jobs:
           python3 -m pip install -r requirements.txt gunicorn --break-system-packages
 
       # 3. Inteligentne przeładowanie aplikacji (Zero Downtime)
-      - name: Reload or Start Application
+      - name: Force Restart and Self-Heal
         run: |
           cd flask_app
           
-          # 1. Zabijanie procesów bez sudo (jeśli runner ma uprawnienia do swoich procesów)
-          # Używamy pkill, który jest mniej inwazyjny niż fuser
-          pkill -9 -f gunicorn || true
+          # 1. Brutalne wyczyszczenie starych procesów
+          # Używamy || true, żeby krok nie wywalił się, jeśli nic nie działa
+          sudo fuser -k 5000/tcp || true
+          sudo pkill -9 -f gunicorn || true
           
-          # Jeśli pkill nie wystarczy, fuser z flagą -n (non-interactive) i -k (kill)
-          # Używamy 'sudo -n', co oznacza "non-interactive" - wywali błąd zamiast wisieć
-          sudo -n fuser -k 5000/tcp || true
+          # 2. Chwila przerwy na zwolnienie zasobów przez system
+          sleep 3
           
-          sleep 2
+          # 3. Uruchomienie Gunicorna z pełnym odcięciem strumieni (STDOUT i STDERR)
+          # Przekierowanie do /dev/null i & na końcu to klucz do automatyzacji
+          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app > flask.log 2>&1 &
           
-          # 2. Start aplikacji
-          # Upewnij się, że ścieżka do loga jest absolutna, by uniknąć problemów
-          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app </dev/null > $(pwd)/flask.log 2>&1 &
-          
-          # 3. Odwiązanie procesu
+          # 4. Odłączenie procesu od powłoki Runnera (kluczowe, by nie wisiało!)
           disown -a
           
-          # 4. Szybka weryfikacja
-          sleep 3
-          pgrep -f gunicorn && echo "Gunicorn wystartował!" || (cat flask.log && exit 1)
-
+          # 5. Weryfikacja po krótkim czasie
+          sleep 5
+          if pgrep -f gunicorn > /dev/null; then
+            echo "✅ Aplikacja uruchomiona automatycznie i działa w tle."
+          else
+            echo "❌ BŁĄD: Aplikacja nie wstała. Logi błędu:"
+            cat flask.log
+            exit 1
+          fi
       # 4. Diagnostyka i weryfikacja metryk
       - name: Verify Metrics and Logs
         run: |
