@@ -9,67 +9,54 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      # 1. Pobranie najnowszego kodu z GitHuba
+      # 1. Pobranie kodu z GitHub do tymczasowego folderu Runnera
       - name: Checkout repository code
         uses: actions/checkout@v3
 
-      # 2. Instalacja zależności + Gunicorn (wymagany do reloadu bez downtime)
+      # 2. Synchronizacja plików do Twojego folderu produkcyjnego
+      # rsync sprawi, że w /home/bartosz/moj-projekt-devops zawsze będzie najnowszy kod
+      - name: Sync to Production Folder
+        run: |
+          echo "Synchronizacja plików..."
+          rsync -av --delete --exclude='.git' ${{ github.workspace }}/ /home/bartosz/moj-projekt-devops/
+
+      # 3. Instalacja bibliotek (bezpośrednio w folderze projektu)
       - name: Install dependencies
         run: |
+          cd /home/bartosz/moj-projekt-devops
           python3 -m pip install -r requirements.txt gunicorn --break-system-packages
 
-      # 3. Inteligentne przeładowanie aplikacji (Zero Downtime)
-      - name: Force Restart and Debug
+      # 4. Automatyczny Restart (Zero Downtime / Force Start)
+      - name: Restart Application
         run: |
-          cd flask_app
+          cd /home/bartosz/moj-projekt-devops/flask_app
           
-          # 1. Całkowite czyszczenie portu (brutalnie)
+          # Brutalne zwolnienie portu 5000, by nowa wersja mogła ruszyć
           sudo fuser -k 5000/tcp || true
           sudo pkill -9 -f gunicorn || true
+          
           sleep 2
           
-          # 2. Uruchomienie z jawnym wskazaniem ścieżki (PYTHONPATH)
-          # Dodajemy --log-level debug, żeby widzieć wszystko w flask.log
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
-          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app --log-level debug > flask.log 2>&1 &
+          # Uruchomienie Gunicorna jako niezależnego procesu (demonizacja)
+          # app:app oznacza plik app.py i obiekt app = Flask(__name__)
+          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app > flask.log 2>&1 &
           
+          # Odwiązanie procesu od sesji Runnera, by nie "wisiał"
           disown -a
-          
-          # 3. Dłuższe oczekiwanie na ustabilizowanie procesu
-          sleep 10
-          
-          # 4. Sprawdzenie czy port 5000 faktycznie słucha
-          if sudo lsof -i :5000; then
-            echo "✅ SUKCES: Port 5000 jest aktywny."
-          else
-            echo "❌ BŁĄD: Port 5000 nie odpowiada. Treść logów:"
-            cat flask.log
-            exit 1
-          fi
-      # 4. Diagnostyka i weryfikacja metryk
-      - name: Verify Metrics and Logs
-        run: |
-          cd flask_app
-          echo "--- OSTATNIE LOGI ---"
-          [ -f flask.log ] && tail -n 10 flask.log || echo "Brak pliku logów"
-          
-          echo "--- TEST ENDPOINTU /METRICS ---"
-          # Próbujemy pobrać metryki. Jeśli serwer nie odpowie, pipeline padnie tutaj.
-          curl -s --retry 3 --retry-delay 2 http://localhost:5000/metrics | grep python_info
-          echo "Metryki są dostępne, aplikacja działa poprawnie."
+          sleep 5
 
-      # 5. Powiadomienie e-mail (korzysta z Twoich sekretów)
+      # 5. Weryfikacja: Czy serwer faktycznie wstał i wystawia metryki?
+      - name: Verify Deployment
+        run: |
+          echo "Sprawdzanie dostępności aplikacji..."
+          curl -s --retry 5 --retry-delay 2 http://localhost:5000/metrics | grep python_info
+          echo "✅ Wdrożenie zweryfikowane pomyślnie!"
+
+      # 6. Powiadomienie E-mail
       - name: Send Email Notification
         run: |
-          # Upewnij się, że send_mail.py jest w głównym folderze lub dodaj cd
+          cd /home/bartosz/moj-projekt-devops
           python3 send_mail.py
         env:
-          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
-          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
-
-      # 6. Finalny status w konsoli Actions
-      - name: Status Report
-        run: |
-          echo "Wdrożenie zakończone sukcesem!"
-          echo "Adres: http://192.168.0.108:5000"
-          echo "Status: Zielony (Zero Downtime)"
+          GMAIL_USER: ${{ secrets.MAIL_USERNAME }}
+          GMAIL_APP_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
