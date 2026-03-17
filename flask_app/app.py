@@ -14,7 +14,7 @@ login_counter = metrics.counter('logins_total', 'Liczba logowań')
 
 @app.route('/')
 def index():
-    return "Serwer działa! Ver 1.1.4 Wejdź na /metrics"
+    return "Serwer działa! Ver 1.1.4.1 Wejdź na /metrics"
 
 @app.route('/login')
 def login():
