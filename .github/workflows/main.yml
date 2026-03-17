@@ -20,14 +20,13 @@ jobs:
         run: |
           cd /home/bartosz/moj-projekt-devops
           
-          # 1. Zbuduj nowy obraz (jeśli kod się zmienił)
-          docker compose build
+          # Używamy sudo, aby uniknąć 'permission denied' przy zatrzymywaniu kontenerów
+          sudo docker compose build
           
-          # 2. Uruchom kontener (Docker sam zatrzyma stary i włączy nowy - Zero Downtime)
-          docker compose up -d
+          # Force-recreate wymusi stworzenie nowego kontenera nawet jeśli stary stawia opór
+          sudo docker compose up -d --force-recreate
           
-          # 3. Usuń nieużywane, stare obrazy, żeby nie zajmowały miejsca
-          docker image prune -f
+          sudo docker image prune -f
 
       - name: Verify Docker Container
         run: |
