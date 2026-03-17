@@ -20,13 +20,16 @@ jobs:
         run: |
           cd /home/bartosz/moj-projekt-devops
           
-          # Używamy sudo, aby uniknąć 'permission denied' przy zatrzymywaniu kontenerów
-          sudo docker compose build
+          # Używamy docker compose bez sudo, bo dodaliśmy użytkownika do grupy
+          docker compose build
           
-          # Force-recreate wymusi stworzenie nowego kontenera nawet jeśli stary stawia opór
-          sudo docker compose up -d --force-recreate
+          # Zatrzymujemy stary kontener ręcznie, aby uniknąć blokad
+          docker compose down || true
           
-          sudo docker image prune -f
+          # Startujemy nowy
+          docker compose up -d
+          
+          docker image prune -f
 
       - name: Verify Docker Container
         run: |
