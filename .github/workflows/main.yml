@@ -1,62 +1,36 @@
-name: Flask DevOps Pipeline
+name: Flask Docker Deployment
 
 on:
   push:
     branches: [ "main" ]
 
 jobs:
-  deploy-and-notify:
+  deploy:
     runs-on: self-hosted
 
     steps:
-      # 1. Pobranie kodu z GitHub do tymczasowego folderu Runnera
-      - name: Checkout repository code
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2. Synchronizacja plików do Twojego folderu produkcyjnego
-      # rsync sprawi, że w /home/bartosz/moj-projekt-devops zawsze będzie najnowszy kod
       - name: Sync to Production Folder
         run: |
-          echo "Synchronizacja plików..."
           rsync -av --delete --exclude='.git' ${{ github.workspace }}/ /home/bartosz/moj-projekt-devops/
 
-      # 3. Instalacja bibliotek (bezpośrednio w folderze projektu)
-      - name: Install dependencies
+      - name: Docker Build and Run
         run: |
           cd /home/bartosz/moj-projekt-devops
-          python3 -m pip install -r requirements.txt gunicorn --break-system-packages
+          
+          # 1. Zbuduj nowy obraz (jeśli kod się zmienił)
+          docker compose build
+          
+          # 2. Uruchom kontener (Docker sam zatrzyma stary i włączy nowy - Zero Downtime)
+          docker compose up -d
+          
+          # 3. Usuń nieużywane, stare obrazy, żeby nie zajmowały miejsca
+          docker image prune -f
 
-      # 4. Automatyczny Restart (Zero Downtime / Force Start)
-      - name: Restart Application
+      - name: Verify Docker Container
         run: |
-          cd /home/bartosz/moj-projekt-devops/flask_app
-          
-          # Brutalne zwolnienie portu 5000, by nowa wersja mogła ruszyć
-          sudo fuser -k 5000/tcp || true
-          sudo pkill -9 -f gunicorn || true
-          
-          sleep 2
-          
-          # Uruchomienie Gunicorna jako niezależnego procesu (demonizacja)
-          # app:app oznacza plik app.py i obiekt app = Flask(__name__)
-          RUNNER_TRACKING_ID="" nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app > flask.log 2>&1 &
-          
-          # Odwiązanie procesu od sesji Runnera, by nie "wisiał"
-          disown -a
           sleep 5
-
-      # 5. Weryfikacja: Czy serwer faktycznie wstał i wystawia metryki?
-      - name: Verify Deployment
-        run: |
-          echo "Sprawdzanie dostępności aplikacji..."
-          curl -s --retry 5 --retry-delay 2 http://localhost:5000/metrics | grep python_info
-          echo "✅ Wdrożenie zweryfikowane pomyślnie!"
-
-      # 6. Powiadomienie E-mail
-      - name: Send Email Notification
-        run: |
-          cd /home/bartosz/moj-projekt-devops
-          python3 send_mail.py
-        env:
-          GMAIL_USER: ${{ secrets.MAIL_USERNAME }}
-          GMAIL_APP_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          docker ps | grep flask_devops_container
+          curl -s http://localhost:5000/metrics | grep python_info

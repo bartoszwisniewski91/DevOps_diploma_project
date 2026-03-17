@@ -1,7 +1,165 @@
-[2026-03-17 21:59:22 +0000] [20738] [INFO] Starting gunicorn 25.1.0
-[2026-03-17 21:59:22 +0000] [20738] [INFO] Listening at: http://0.0.0.0:5000 (20738)
-[2026-03-17 21:59:22 +0000] [20738] [INFO] Using worker: sync
-[2026-03-17 21:59:22 +0000] [20738] [INFO] Control socket listening at /home/bartosz/moj-projekt-devops/flask_app/gunicorn.ctl
-[2026-03-17 21:59:22 +0000] [20744] [INFO] Booting worker with pid: 20744
-[2026-03-17 21:59:22 +0000] [20745] [INFO] Booting worker with pid: 20745
-[2026-03-17 21:59:22 +0000] [20746] [INFO] Booting worker with pid: 20746
+[2026-03-17 22:13:27 +0000] [22666] [INFO] Starting gunicorn 25.1.0
+[2026-03-17 22:13:27 +0000] [22666] [INFO] Listening at: http://0.0.0.0:5000 (22666)
+[2026-03-17 22:13:27 +0000] [22666] [INFO] Using worker: sync
+[2026-03-17 22:13:27 +0000] [22666] [INFO] Control socket listening at /home/bartosz/moj-projekt-devops/flask_app/gunicorn.ctl
+[2026-03-17 22:13:27 +0000] [22670] [INFO] Booting worker with pid: 22670
+[2026-03-17 22:13:27 +0000] [22671] [INFO] Booting worker with pid: 22671
+[2026-03-17 22:13:27 +0000] [22672] [INFO] Booting worker with pid: 22672
+[2026-03-17 22:17:30 +0000] [22666] [CRITICAL] WORKER TIMEOUT (pid:22670)
+[2026-03-17 22:17:30 +0000] [22670] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+          ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+           ^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+        ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-17 22:17:30 +0000] [22670] [INFO] Worker exiting (pid: 22670)
+[2026-03-17 22:17:30 +0000] [23136] [INFO] Booting worker with pid: 23136
+[2026-03-17 22:19:15 +0000] [22666] [CRITICAL] WORKER TIMEOUT (pid:22671)
+[2026-03-17 22:19:15 +0000] [22671] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+          ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+           ^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+        ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-17 22:19:15 +0000] [22671] [INFO] Worker exiting (pid: 22671)
+[2026-03-17 22:19:15 +0000] [23282] [INFO] Booting worker with pid: 23282
+[2026-03-17 22:24:17 +0000] [22666] [CRITICAL] WORKER TIMEOUT (pid:23136)
+[2026-03-17 22:24:17 +0000] [23136] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+          ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+           ^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+        ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-17 22:24:17 +0000] [23136] [INFO] Worker exiting (pid: 23136)
+[2026-03-17 22:24:17 +0000] [23716] [INFO] Booting worker with pid: 23716
+[2026-03-17 22:26:03 +0000] [22666] [CRITICAL] WORKER TIMEOUT (pid:23716)
+[2026-03-17 22:26:03 +0000] [23716] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+          ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+           ^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+        ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-17 22:26:03 +0000] [23716] [INFO] Worker exiting (pid: 23716)
+[2026-03-17 22:26:03 +0000] [23860] [INFO] Booting worker with pid: 23860
+[2026-03-17 22:38:08 +0000] [22666] [INFO] Handling signal: hup
+[2026-03-17 22:38:08 +0000] [22666] [INFO] Hang up: Master
+[2026-03-17 22:38:08 +0000] [25561] [INFO] Booting worker with pid: 25561
+[2026-03-17 22:38:08 +0000] [22666] [WARNING] Worker (pid:22672) was sent SIGHUP!
+[2026-03-17 22:38:08 +0000] [22666] [WARNING] Worker (pid:23282) was sent SIGHUP!
+[2026-03-17 22:38:08 +0000] [22666] [WARNING] Worker (pid:23860) was sent SIGHUP!
+[2026-03-17 22:38:08 +0000] [25562] [INFO] Booting worker with pid: 25562
+[2026-03-17 22:38:08 +0000] [25560] [INFO] Booting worker with pid: 25560
+[2026-03-17 22:39:52 +0000] [22666] [CRITICAL] WORKER TIMEOUT (pid:25561)
+[2026-03-17 22:39:52 +0000] [25561] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/sync.py", line 141, in handle
+    req = next(parser)
+          ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/parser.py", line 56, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 324, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 110, in __init__
+    unused = self.parse(self.unreader)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 336, in parse
+    self.read_into(unreader, buf, stop=True)
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/message.py", line 375, in read_into
+    data = unreader.read()
+           ^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+        ^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/bartosz/.local/lib/python3.12/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+SystemExit: 1
+[2026-03-17 22:39:52 +0000] [25561] [INFO] Worker exiting (pid: 25561)
+[2026-03-17 22:39:52 +0000] [27891] [INFO] Booting worker with pid: 27891
