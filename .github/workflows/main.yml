@@ -19,31 +19,30 @@ jobs:
           python3 -m pip install -r requirements.txt gunicorn --break-system-packages
 
       # 3. Inteligentne przeładowanie aplikacji (Zero Downtime)
-      - name: Force Restart and Self-Heal
+      - name: Force Restart and Debug
         run: |
           cd flask_app
           
-          # 1. Brutalne wyczyszczenie starych procesów
-          # Używamy || true, żeby krok nie wywalił się, jeśli nic nie działa
+          # 1. Całkowite czyszczenie portu (brutalnie)
           sudo fuser -k 5000/tcp || true
           sudo pkill -9 -f gunicorn || true
+          sleep 2
           
-          # 2. Chwila przerwy na zwolnienie zasobów przez system
-          sleep 3
+          # 2. Uruchomienie z jawnym wskazaniem ścieżki (PYTHONPATH)
+          # Dodajemy --log-level debug, żeby widzieć wszystko w flask.log
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app --log-level debug > flask.log 2>&1 &
           
-          # 3. Uruchomienie Gunicorna z pełnym odcięciem strumieni (STDOUT i STDERR)
-          # Przekierowanie do /dev/null i & na końcu to klucz do automatyzacji
-          nohup gunicorn --workers 3 --bind 0.0.0.0:5000 app:app > flask.log 2>&1 &
-          
-          # 4. Odłączenie procesu od powłoki Runnera (kluczowe, by nie wisiało!)
           disown -a
           
-          # 5. Weryfikacja po krótkim czasie
-          sleep 5
-          if pgrep -f gunicorn > /dev/null; then
-            echo "✅ Aplikacja uruchomiona automatycznie i działa w tle."
+          # 3. Dłuższe oczekiwanie na ustabilizowanie procesu
+          sleep 10
+          
+          # 4. Sprawdzenie czy port 5000 faktycznie słucha
+          if sudo lsof -i :5000; then
+            echo "✅ SUKCES: Port 5000 jest aktywny."
           else
-            echo "❌ BŁĄD: Aplikacja nie wstała. Logi błędu:"
+            echo "❌ BŁĄD: Port 5000 nie odpowiada. Treść logów:"
             cat flask.log
             exit 1
           fi
